@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "terraval"
+version = "0.1.0"
+description = "Agente CLI especialista em avaliações de imóveis rurais — NBR 14653, Atlas INCRA 2025, BACEN 4.676/2018"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Leandro Pitol", email = "leandro.resinasjardim@gmail.com" }]
+keywords = ["avaliacao", "rural", "NBR14653", "laudo", "imovel", "terraval"]
+
+dependencies = [
+    "litellm>=1.50.0",
+    "rich>=13.7.0",
+    "typer>=0.12.0",
+]
+
+[project.scripts]
+terraval = "terraval.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/leandropitol/terraval"
+Repository = "https://github.com/leandropitol/terraval"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["terraval*"]
+
+[tool.setuptools.package-data]
+terraval = ["data/*"]
