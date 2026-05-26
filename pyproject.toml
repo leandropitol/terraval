@@ -34,4 +34,4 @@ where = ["."]
 include = ["terraval*"]
 
 [tool.setuptools.package-data]
-terraval = ["data/*"]
+terraval = ["data/SKILL.md", "data/references/*.md"]

@@ -8,6 +8,7 @@ from rich.table import Table
 from rich import box
 
 from .exporter import save_report
+from .reader import read_file, list_folder
 from .agent import TerraValAgent
 from .config import (
     PROVIDERS,
@@ -46,15 +47,18 @@ def print_help() -> None:
     t = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
     t.add_column(style="green bold")
     t.add_column()
-    t.add_row("/ajuda",        "Mostra esta mensagem")
-    t.add_row("/salvar",       "Salva o último laudo em .docx e .pdf")
-    t.add_row("/salvar docx",  "Salva somente em Word (.docx)")
-    t.add_row("/salvar pdf",   "Salva somente em PDF")
-    t.add_row("/salvar md",    "Salva somente em Markdown (.md)")
-    t.add_row("/limpar",       "Limpa o histórico da conversa atual")
-    t.add_row("/modelo",       "Exibe o modelo e provedor ativos")
-    t.add_row("/config",       "Reconfigura provedor e API key")
-    t.add_row("/sair",         "Encerra o TerraVal")
+    t.add_row("/ajuda",           "Mostra esta mensagem")
+    t.add_row("/ler <arquivo>",   "Carrega um arquivo local (.txt .md .docx .csv)")
+    t.add_row("/pasta [caminho]", "Lista arquivos suportados numa pasta")
+    t.add_row("/arquivos",        "Lista os arquivos já carregados nesta sessão")
+    t.add_row("/salvar",          "Salva o último laudo em .docx e .pdf")
+    t.add_row("/salvar docx",     "Salva somente em Word (.docx)")
+    t.add_row("/salvar pdf",      "Salva somente em PDF")
+    t.add_row("/salvar md",       "Salva somente em Markdown (.md)")
+    t.add_row("/limpar",          "Limpa o histórico da conversa atual")
+    t.add_row("/modelo",          "Exibe o modelo e provedor ativos")
+    t.add_row("/config",          "Reconfigura provedor e API key")
+    t.add_row("/sair",            "Encerra o TerraVal")
     console.print(Panel(t, title="[bold]Comandos[/bold]", border_style="dim", padding=(0, 1)))
 
     e = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
@@ -149,6 +153,7 @@ def main(ctx: typer.Context) -> None:
 
     agent = TerraValAgent(model=model, provider_info=provider_info, api_key=api_key)
     print_banner(model, agent.loaded_refs)
+    loaded_files: list[str] = []
 
     while True:
         try:
@@ -190,6 +195,7 @@ def main(ctx: typer.Context) -> None:
 
         elif cmd == "/limpar":
             agent.clear_history()
+            loaded_files = []
             console.print("[dim]Histórico limpo.[/dim]\n")
             continue
 
@@ -203,7 +209,54 @@ def main(ctx: typer.Context) -> None:
             model = config["model"]
             api_key = config["api_key"]
             agent = TerraValAgent(model=model, provider_info=provider_info, api_key=api_key)
+            loaded_files = []
             print_banner(model, agent.loaded_refs)
+            continue
+
+        elif cmd.startswith("/ler"):
+            parts = text.split(maxsplit=1)
+            if len(parts) < 2:
+                console.print("[yellow]Uso: /ler <caminho do arquivo>[/yellow]\n")
+                continue
+            file_arg = parts[1].strip().strip('"').strip("'")
+            try:
+                name, content = read_file(file_arg)
+                msg = f"[Arquivo carregado: {name}]\n\n{content}"
+                agent.history.append({"role": "user", "content": msg})
+                agent.history.append({"role": "assistant", "content": f"Entendido. Carreguei o arquivo **{name}** ({len(content):,} caracteres). Pode fazer suas perguntas sobre ele."})
+                loaded_files.append(name)
+                console.print(f"  [green]✓[/green] [bold]{name}[/bold] carregado — {len(content):,} caracteres\n")
+            except ValueError as e:
+                console.print(f"[red]{e}[/red]\n")
+            continue
+
+        elif cmd.startswith("/pasta"):
+            parts = text.split(maxsplit=1)
+            folder_arg = parts[1].strip().strip('"').strip("'") if len(parts) > 1 else "."
+            try:
+                files = list_folder(folder_arg)
+                if not files:
+                    console.print("[yellow]Nenhum arquivo suportado encontrado na pasta.[/yellow]\n")
+                else:
+                    t2 = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+                    t2.add_column(style="cyan")
+                    t2.add_column(style="dim")
+                    for p in files:
+                        size = f"{p.stat().st_size / 1024:.0f} KB"
+                        t2.add_row(p.name, size)
+                    console.print(Panel(t2, title=f"[bold]{folder_arg}[/bold]", border_style="dim"))
+                    console.print("[dim]Use [bold]/ler <nome>[/bold] para carregar um arquivo.[/dim]\n")
+            except ValueError as e:
+                console.print(f"[red]{e}[/red]\n")
+            continue
+
+        elif cmd == "/arquivos":
+            if not loaded_files:
+                console.print("[dim]Nenhum arquivo carregado nesta sessão.[/dim]\n")
+            else:
+                for f in loaded_files:
+                    console.print(f"  [green]✓[/green] {f}")
+                console.print()
             continue
 
         # ── Stream response ────────────────────────────────────────────────
