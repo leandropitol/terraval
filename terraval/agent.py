@@ -86,9 +86,11 @@ class TerraValAgent:
         refs_text, self.loaded_refs = load_references(model)
         self.system_prompt = skill + refs_text
         self.history: list[dict] = []
+        self.last_response: str = ""
 
     def clear_history(self) -> None:
         self.history = []
+        self.last_response = ""
 
     def chat(self, user_message: str) -> Generator[str, None, None]:
         self.history.append({"role": "user", "content": user_message})
@@ -112,4 +114,5 @@ class TerraValAgent:
                 full_response += delta
                 yield delta
 
+        self.last_response = full_response
         self.history.append({"role": "assistant", "content": full_response})

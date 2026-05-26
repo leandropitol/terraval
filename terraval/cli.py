@@ -7,6 +7,8 @@ from rich.prompt import Prompt
 from rich.table import Table
 from rich import box
 
+from .exporter import save_report
+
 from .agent import TerraValAgent
 from .config import (
     PROVIDERS,
@@ -46,11 +48,15 @@ def print_help() -> None:
     t = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
     t.add_column(style="green bold")
     t.add_column()
-    t.add_row("/ajuda",  "Mostra esta mensagem")
-    t.add_row("/limpar", "Limpa o histórico da conversa atual")
-    t.add_row("/modelo", "Exibe o modelo e provedor ativos")
-    t.add_row("/config", "Reconfigura provedor e API key")
-    t.add_row("/sair",   "Encerra o TerraVal")
+    t.add_row("/ajuda",        "Mostra esta mensagem")
+    t.add_row("/salvar",       "Salva o último laudo em .docx e .pdf")
+    t.add_row("/salvar docx",  "Salva somente em Word (.docx)")
+    t.add_row("/salvar pdf",   "Salva somente em PDF")
+    t.add_row("/salvar md",    "Salva somente em Markdown (.md)")
+    t.add_row("/limpar",       "Limpa o histórico da conversa atual")
+    t.add_row("/modelo",       "Exibe o modelo e provedor ativos")
+    t.add_row("/config",       "Reconfigura provedor e API key")
+    t.add_row("/sair",         "Encerra o TerraVal")
     console.print(Panel(t, title="[bold]Comandos[/bold]", border_style="dim", padding=(0, 1)))
 
     e = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
@@ -167,6 +173,24 @@ def main(ctx: typer.Context) -> None:
 
         elif cmd == "/ajuda":
             print_help()
+            continue
+
+        elif cmd.startswith("/salvar"):
+            if not agent.last_response:
+                console.print("[yellow]Nenhum laudo gerado ainda. Faça uma pergunta primeiro.[/yellow]\n")
+                continue
+            parts = cmd.split()
+            fmts = parts[1:] if len(parts) > 1 else ["docx", "pdf"]
+            valid = {"docx", "pdf", "md"}
+            fmts = [f for f in fmts if f in valid] or ["docx", "pdf"]
+            console.print(f"[dim]Salvando em {', '.join(f.upper() for f in fmts)}...[/dim]")
+            try:
+                saved = save_report(agent.last_response, fmts)
+                for fmt, path in saved.items():
+                    console.print(f"  [green]✓[/green] [bold]{fmt.upper()}[/bold] → [cyan]{path}[/cyan]")
+            except Exception as e:
+                console.print(f"[red]Erro ao salvar: {e}[/red]")
+            console.print()
             continue
 
         elif cmd == "/limpar":
