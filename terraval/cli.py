@@ -108,8 +108,9 @@ def run_setup() -> dict:
 
     console.print()
     console.print(f"[bold]3. API Key — {prov['name']}[/bold]")
-    console.print(f"   [dim]Obtenha em: [link={prov['key_url']}]{prov['key_url']}[/link][/dim]\n")
-    api_key = Prompt.ask("[bold]Cole sua API Key[/bold]", password=True)
+    console.print(f"   [dim]Obtenha em: [link={prov['key_url']}]{prov['key_url']}[/link][/dim]")
+    console.print("   [dim]No CMD: cole com clique direito do mouse[/dim]\n")
+    api_key = Prompt.ask("[bold]Cole sua API Key[/bold]")
 
     config = {
         "provider": prov["key"],
