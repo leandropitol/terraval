@@ -17,13 +17,17 @@ REFERENCE_FILES = [
 ]
 
 # KB budget per model family.
-# Claude 200K → budget 770 KB carrega os 4 docs core (767 KB total).
+# Calibrado empiricamente: texto técnico BR com tabelas ≈ 436 tokens/KB.
+# Claude 200K  → 770 KB  ≈ 336K tokens (seguro)
+# GPT-4o 128K  → 200 KB  ≈  87K tokens + 10 KB SKILL + ~20K conversa = ~123K (seguro)
+# Gemini 1M    → 380 KB  ≈ 166K tokens (seguro)
+# Llama 128K   → 110 KB  ≈  48K tokens (seguro)
 CONTEXT_BUDGET_KB = {
     "claude":  770,
-    "gpt-4o":  380,
+    "gpt-4o":  200,
     "gemini":  380,
-    "llama":   130,
-    "default": 200,
+    "llama":   110,
+    "default": 160,
 }
 
 
