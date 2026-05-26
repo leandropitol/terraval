@@ -11,24 +11,26 @@ REFERENCES_DIR = Path(__file__).parent / "data" / "references"
 # Priority order: most critical first.
 # (filename, display_name, size_kb)
 REFERENCE_FILES = [
-    ("nbr-14653-3-imoveis-rurais.md",       "ABNT NBR 14653-3 — Imóveis Rurais",            84),
-    ("bacen-resolucao-4676-2018.md",         "Resolução BACEN nº 4.676/2018 — LTV/Garantias", 37),
-    ("planilha-vtn-2025.md",                 "Planilha VTN 2025 — INCRA (por município)",    224),
-    ("nbr-14653-1-procedimentos-gerais.md",  "ABNT NBR 14653-1 — Procedimentos Gerais",       32),
-    ("palestra-arantes-nbr-14653.md",        "Palestra Arantes — Interpretação NBR 14653-3",  27),
-    ("nbr-14653-4-empreendimentos.md",       "ABNT NBR 14653-4 — Empreendimentos",            51),
-    ("nbr-14653-5-maquinas.md",              "ABNT NBR 14653-5 — Máquinas e Benfeitorias",    47),
-    ("nbr-14653-6-recursos-naturais.md",     "ABNT NBR 14653-6 — Recursos Naturais",          38),
-    ("atlas-mercado-terras-2025.md",         "Atlas do Mercado de Terras INCRA 2025",        422),
+    # Priority order: most critical first.
+    # Atlas e Planilha VTN são os únicos com dados de mercado reais —
+    # sem eles o agente opera apenas com conhecimento de treinamento do LLM.
+    ("nbr-14653-3-imoveis-rurais.md",       "ABNT NBR 14653-3 — Imóveis Rurais",             84),
+    ("bacen-resolucao-4676-2018.md",         "Resolução BACEN nº 4.676/2018 — LTV/Garantias",  37),
+    ("atlas-mercado-terras-2025.md",         "Atlas do Mercado de Terras INCRA 2025",          422),
+    ("planilha-vtn-2025.md",                 "Planilha VTN 2025 — INCRA (por município)",      224),
+    ("nbr-14653-1-procedimentos-gerais.md",  "ABNT NBR 14653-1 — Procedimentos Gerais",         32),
+    ("nbr-14653-4-empreendimentos.md",       "ABNT NBR 14653-4 — Empreendimentos",              51),
+    ("nbr-14653-6-recursos-naturais.md",     "ABNT NBR 14653-6 — Recursos Naturais",            38),
 ]
 
-# KB budget per model family (rough: 1 KB ≈ 250 tokens in Portuguese).
-# Leaves ~30% of context for conversation history.
+# KB budget per model family.
+# Markdown de tabelas tokeniza eficientemente (~3,5 chars/token em PT).
+# Claude 200K → budget 770 KB carrega os 4 docs core (767 KB total).
 CONTEXT_BUDGET_KB = {
-    "claude":  540,   # 200K ctx  → up to ~135K tokens for docs
-    "gpt-4o":  300,   # 128K ctx  → up to ~75K tokens for docs
-    "gemini":  300,   # 1M ctx but conservative to keep costs low
-    "groq":    120,   # 32K–128K depending on model
+    "claude":  770,   # 200K ctx  → carrega NBR14653-3 + BACEN + Atlas + Planilha VTN
+    "gpt-4o":  380,   # 128K ctx  → carrega NBR14653-3 + BACEN + Planilha VTN + NBR14653-1
+    "gemini":  380,   # conservador para manter custo baixo
+    "groq":    130,   # 32K–128K dependendo do modelo
     "default": 200,
 }
 
