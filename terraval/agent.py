@@ -2,18 +2,11 @@ from importlib import resources
 from pathlib import Path
 from typing import Generator
 
-import litellm
-
-litellm.suppress_debug_info = True
-
 REFERENCES_DIR = Path(__file__).parent / "data" / "references"
 
-# Priority order: most critical first.
-# (filename, display_name, size_kb)
 REFERENCE_FILES = [
     # Priority order: most critical first.
-    # Atlas e Planilha VTN são os únicos com dados de mercado reais —
-    # sem eles o agente opera apenas com conhecimento de treinamento do LLM.
+    # Atlas e Planilha VTN são os únicos com dados de mercado reais.
     ("nbr-14653-3-imoveis-rurais.md",       "ABNT NBR 14653-3 — Imóveis Rurais",             84),
     ("bacen-resolucao-4676-2018.md",         "Resolução BACEN nº 4.676/2018 — LTV/Garantias",  37),
     ("atlas-mercado-terras-2025.md",         "Atlas do Mercado de Terras INCRA 2025",          422),
@@ -24,13 +17,12 @@ REFERENCE_FILES = [
 ]
 
 # KB budget per model family.
-# Markdown de tabelas tokeniza eficientemente (~3,5 chars/token em PT).
 # Claude 200K → budget 770 KB carrega os 4 docs core (767 KB total).
 CONTEXT_BUDGET_KB = {
-    "claude":  770,   # 200K ctx  → carrega NBR14653-3 + BACEN + Atlas + Planilha VTN
-    "gpt-4o":  380,   # 128K ctx  → carrega NBR14653-3 + BACEN + Planilha VTN + NBR14653-1
-    "gemini":  380,   # conservador para manter custo baixo
-    "groq":    130,   # 32K–128K dependendo do modelo
+    "claude":  770,
+    "gpt-4o":  380,
+    "gemini":  380,
+    "llama":   130,
     "default": 200,
 }
 
@@ -44,10 +36,6 @@ def _budget_for(model: str) -> int:
 
 
 def load_references(model: str) -> tuple[str, list[str]]:
-    """Load reference documents up to the model's context budget.
-
-    Returns (combined_text, list_of_loaded_display_names).
-    """
     budget_kb = _budget_for(model)
     used_kb = 0
     blocks: list[str] = []
@@ -61,9 +49,7 @@ def load_references(model: str) -> tuple[str, list[str]]:
             continue
         content = path.read_text(encoding="utf-8")
         blocks.append(
-            f"\n\n---\n"
-            f"## BASE DE CONHECIMENTO: {display_name}\n\n"
-            f"{content}"
+            f"\n\n---\n## BASE DE CONHECIMENTO: {display_name}\n\n{content}"
         )
         loaded.append(display_name)
         used_kb += size_kb
@@ -79,9 +65,24 @@ def _load_skill() -> str:
         return (Path(__file__).parent / "data" / "SKILL.md").read_text(encoding="utf-8")
 
 
+def _make_client(provider_info: dict, api_key: str):
+    sdk = provider_info["sdk"]
+    if sdk == "anthropic":
+        from anthropic import Anthropic
+        return Anthropic(api_key=api_key)
+    else:
+        from openai import OpenAI
+        kwargs = {"api_key": api_key}
+        if provider_info.get("base_url"):
+            kwargs["base_url"] = provider_info["base_url"]
+        return OpenAI(**kwargs)
+
+
 class TerraValAgent:
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, provider_info: dict, api_key: str) -> None:
         self.model = model
+        self.sdk = provider_info["sdk"]
+        self.client = _make_client(provider_info, api_key)
         skill = _load_skill()
         refs_text, self.loaded_refs = load_references(model)
         self.system_prompt = skill + refs_text
@@ -94,25 +95,31 @@ class TerraValAgent:
 
     def chat(self, user_message: str) -> Generator[str, None, None]:
         self.history.append({"role": "user", "content": user_message})
-
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            *self.history,
-        ]
-
-        response = litellm.completion(
-            model=self.model,
-            messages=messages,
-            stream=True,
-            max_tokens=4096,
-        )
-
         full_response = ""
-        for chunk in response:
-            delta = chunk.choices[0].delta.content or ""
-            if delta:
-                full_response += delta
-                yield delta
+
+        if self.sdk == "anthropic":
+            with self.client.messages.stream(
+                model=self.model,
+                max_tokens=4096,
+                system=self.system_prompt,
+                messages=self.history,
+            ) as stream:
+                for delta in stream.text_stream:
+                    full_response += delta
+                    yield delta
+        else:
+            messages = [{"role": "system", "content": self.system_prompt}, *self.history]
+            stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=4096,
+                stream=True,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content or ""
+                if delta:
+                    full_response += delta
+                    yield delta
 
         self.last_response = full_response
         self.history.append({"role": "assistant", "content": full_response})

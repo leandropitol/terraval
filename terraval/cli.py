@@ -8,15 +8,13 @@ from rich.table import Table
 from rich import box
 
 from .exporter import save_report
-
 from .agent import TerraValAgent
 from .config import (
     PROVIDERS,
-    apply_api_key,
-    get_litellm_model,
     is_configured,
     load_config,
     save_config,
+    get_provider_info,
 )
 
 app = typer.Typer(
@@ -61,14 +59,13 @@ def print_help() -> None:
 
     e = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
     e.add_column(style="dim")
-    exemplos = [
+    for ex in [
         "Avalie uma fazenda de 500 ha em pecuária extensiva em Unaí/MG",
         "Tenho 10 amostras de R$/ha — aplique Box Plot e homogeneização",
         "Calcule o LTV máximo para garantia de R$ 3,2M com operação de R$ 1,8M",
         "Qual o grau de fundamentação com 12 dados tratados por fatores?",
         "Monte o Módulo 5 completo com campo de arbítrio e disclaimer CREA",
-    ]
-    for ex in exemplos:
+    ]:
         e.add_row(f'"{ex}"')
     console.print(Panel(e, title="[bold]Exemplos[/bold]", border_style="dim", padding=(0, 1)))
     console.print()
@@ -85,7 +82,6 @@ def run_setup() -> dict:
     ))
     console.print()
 
-    # Provider
     console.print("[bold]1. Escolha o provedor LLM:[/bold]\n")
     for k, p in PROVIDERS.items():
         console.print(f"   [green]{k}[/green]  {p['name']}")
@@ -100,7 +96,6 @@ def run_setup() -> dict:
     prov = PROVIDERS[choice]
     console.print()
 
-    # Model
     console.print(f"[bold]2. Modelo ({prov['name']}):[/bold]\n")
     for k, (mid, desc) in prov["models"].items():
         console.print(f"   [green]{k}[/green]  {desc}")
@@ -111,7 +106,6 @@ def run_setup() -> dict:
         model_choice = "1"
     model_id, _ = prov["models"][model_choice]
 
-    # API key
     console.print()
     console.print(f"[bold]3. API Key — {prov['name']}[/bold]")
     console.print(f"   [dim]Obtenha em: [link={prov['key_url']}]{prov['key_url']}[/link][/dim]\n")
@@ -148,10 +142,11 @@ def main(ctx: typer.Context) -> None:
         console.print("[yellow]Nenhuma configuração encontrada.[/yellow]")
         config = run_setup()
 
-    apply_api_key(config)
-    model = get_litellm_model(config)
+    provider_info = get_provider_info(config)
+    model = config["model"]
+    api_key = config["api_key"]
 
-    agent = TerraValAgent(model=model)
+    agent = TerraValAgent(model=model, provider_info=provider_info, api_key=api_key)
     print_banner(model, agent.loaded_refs)
 
     while True:
@@ -181,8 +176,7 @@ def main(ctx: typer.Context) -> None:
                 continue
             parts = cmd.split()
             fmts = parts[1:] if len(parts) > 1 else ["docx", "pdf"]
-            valid = {"docx", "pdf", "md"}
-            fmts = [f for f in fmts if f in valid] or ["docx", "pdf"]
+            fmts = [f for f in fmts if f in {"docx", "pdf", "md"}] or ["docx", "pdf"]
             console.print(f"[dim]Salvando em {', '.join(f.upper() for f in fmts)}...[/dim]")
             try:
                 saved = save_report(agent.last_response, fmts)
@@ -204,9 +198,10 @@ def main(ctx: typer.Context) -> None:
 
         elif cmd == "/config":
             config = run_setup()
-            apply_api_key(config)
-            model = get_litellm_model(config)
-            agent = TerraValAgent(model=model)
+            provider_info = get_provider_info(config)
+            model = config["model"]
+            api_key = config["api_key"]
+            agent = TerraValAgent(model=model, provider_info=provider_info, api_key=api_key)
             print_banner(model, agent.loaded_refs)
             continue
 

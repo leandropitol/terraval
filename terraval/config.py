@@ -5,14 +5,18 @@ from pathlib import Path
 CONFIG_DIR = Path.home() / ".terraval"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
+# sdk: "anthropic" uses the Anthropic SDK directly.
+# sdk: "openai"    uses the OpenAI SDK (compatible with OpenAI, Groq, OpenRouter, Gemini).
 PROVIDERS = {
     "1": {
         "name": "Anthropic (Claude)",
         "key": "anthropic",
+        "sdk": "anthropic",
+        "base_url": None,
         "models": {
-            "1": ("claude-sonnet-4-6",          "Claude Sonnet 4.6  — recomendado (Recommended)"),
-            "2": ("claude-opus-4-7",             "Claude Opus 4.7    — mais capaz, mais lento"),
-            "3": ("claude-haiku-4-5-20251001",   "Claude Haiku 4.5   — rápido e econômico"),
+            "1": ("claude-sonnet-4-6",        "Claude Sonnet 4.6  — recomendado"),
+            "2": ("claude-opus-4-7",           "Claude Opus 4.7    — mais capaz, mais lento"),
+            "3": ("claude-haiku-4-5-20251001", "Claude Haiku 4.5   — rápido e econômico"),
         },
         "default_model": "claude-sonnet-4-6",
         "env_var": "ANTHROPIC_API_KEY",
@@ -21,6 +25,8 @@ PROVIDERS = {
     "2": {
         "name": "OpenAI",
         "key": "openai",
+        "sdk": "openai",
+        "base_url": "https://api.openai.com/v1",
         "models": {
             "1": ("gpt-4o",      "GPT-4o      — recomendado"),
             "2": ("gpt-4o-mini", "GPT-4o Mini — econômico"),
@@ -33,34 +39,40 @@ PROVIDERS = {
     "3": {
         "name": "Google Gemini",
         "key": "gemini",
+        "sdk": "openai",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
         "models": {
-            "1": ("gemini/gemini-2.0-flash", "Gemini 2.0 Flash — rápido"),
-            "2": ("gemini/gemini-2.5-pro",   "Gemini 2.5 Pro   — mais capaz"),
+            "1": ("gemini-2.0-flash", "Gemini 2.0 Flash — rápido"),
+            "2": ("gemini-2.5-pro",   "Gemini 2.5 Pro   — mais capaz"),
         },
-        "default_model": "gemini/gemini-2.0-flash",
+        "default_model": "gemini-2.0-flash",
         "env_var": "GEMINI_API_KEY",
         "key_url": "https://aistudio.google.com/apikey",
     },
     "4": {
         "name": "Groq  (ultra-rápido, plano gratuito disponível)",
         "key": "groq",
+        "sdk": "openai",
+        "base_url": "https://api.groq.com/openai/v1",
         "models": {
-            "1": ("groq/llama-3.3-70b-versatile", "Llama 3.3 70B — recomendado"),
-            "2": ("groq/llama-3.1-8b-instant",    "Llama 3.1 8B  — ultra-rápido"),
+            "1": ("llama-3.3-70b-versatile", "Llama 3.3 70B — recomendado"),
+            "2": ("llama-3.1-8b-instant",    "Llama 3.1 8B  — ultra-rápido"),
         },
-        "default_model": "groq/llama-3.3-70b-versatile",
+        "default_model": "llama-3.3-70b-versatile",
         "env_var": "GROQ_API_KEY",
         "key_url": "https://console.groq.com/keys",
     },
     "5": {
         "name": "OpenRouter  (200+ modelos com uma chave só)",
         "key": "openrouter",
+        "sdk": "openai",
+        "base_url": "https://openrouter.ai/api/v1",
         "models": {
-            "1": ("openrouter/anthropic/claude-sonnet-4-5", "Claude Sonnet via OpenRouter"),
-            "2": ("openrouter/openai/gpt-4o",               "GPT-4o via OpenRouter"),
-            "3": ("openrouter/google/gemini-2.0-flash-001", "Gemini 2.0 Flash via OpenRouter"),
+            "1": ("anthropic/claude-sonnet-4-5", "Claude Sonnet via OpenRouter"),
+            "2": ("openai/gpt-4o",               "GPT-4o via OpenRouter"),
+            "3": ("google/gemini-2.0-flash-001", "Gemini 2.0 Flash via OpenRouter"),
         },
-        "default_model": "openrouter/anthropic/claude-sonnet-4-5",
+        "default_model": "anthropic/claude-sonnet-4-5",
         "env_var": "OPENROUTER_API_KEY",
         "key_url": "https://openrouter.ai/keys",
     },
@@ -85,17 +97,9 @@ def is_configured(config: dict) -> bool:
     return bool(config.get("model") and config.get("api_key"))
 
 
-def get_litellm_model(config: dict) -> str:
-    return config.get("model", "claude-sonnet-4-6")
-
-
-def apply_api_key(config: dict) -> None:
+def get_provider_info(config: dict) -> dict:
     provider_key = config.get("provider", "anthropic")
-    api_key = config.get("api_key", "")
     for p in PROVIDERS.values():
         if p["key"] == provider_key:
-            os.environ[p["env_var"]] = api_key
-            # OpenRouter also needs this header
-            if provider_key == "openrouter":
-                os.environ["OPENROUTER_API_KEY"] = api_key
-            return
+            return p
+    return PROVIDERS["1"]
