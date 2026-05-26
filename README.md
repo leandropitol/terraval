@@ -10,7 +10,7 @@ Funciona com qualquer chave de API: **Anthropic**, **OpenAI**, **Google Gemini**
 
 ## Instalação
 
-### Windows (CMD ou PowerShell)
+### Windows (CMD)
 ```cmd
 pip install git+https://github.com/leandropitol/terraval.git
 ```
@@ -20,26 +20,35 @@ pip install git+https://github.com/leandropitol/terraval.git
 curl -fsSL https://raw.githubusercontent.com/leandropitol/terraval/main/install.sh | bash
 ```
 
-### Windows (PowerShell — one-liner)
-```powershell
-iwr https://raw.githubusercontent.com/leandropitol/terraval/main/install.ps1 | iex
-```
-
 > **Requisito:** Python 3.10 ou superior — [python.org/downloads](https://www.python.org/downloads/)
 
 ---
 
 ## Início rápido
 
-```bash
-# 1. Configurar provedor e API key (feito uma única vez)
-terraval setup
-
-# 2. Iniciar o agente
-terraval
+```cmd
+python -m terraval setup
+python -m terraval
 ```
 
+> **Windows:** use sempre `python -m terraval` em vez de `terraval` diretamente.  
+> O pip instala o executável numa pasta fora do PATH por padrão.  
+> Para usar o atalho curto `terraval`, veja a seção **PATH** abaixo.
+
 Na primeira execução sem `setup`, o assistente de configuração abre automaticamente.
+
+---
+
+## Adicionando `terraval` ao PATH no Windows (opcional)
+
+Abra o **CMD** e rode o comando abaixo — depois feche e abra um novo CMD:
+
+```cmd
+setx PATH "%PATH%;%APPDATA%\..\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts"
+```
+
+> O caminho exato pode variar conforme a versão do Python. Confirme olhando o aviso  
+> `WARNING: The script terraval.exe is installed in ...` que aparece durante o `pip install`.
 
 ---
 
