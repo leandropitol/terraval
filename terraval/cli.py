@@ -27,13 +27,15 @@ console = Console()
 
 # ── UI helpers ────────────────────────────────────────────────────────────────
 
-def print_banner(model: str) -> None:
+def print_banner(model: str, loaded_refs: list[str]) -> None:
+    docs_line = "\n".join(f"  [green]✓[/green] [dim]{r}[/dim]" for r in loaded_refs)
     console.print()
     console.print(Panel.fit(
         "[bold green]🌾  TerraVal[/bold green]  [dim]—  Especialista em Avaliações de Imóveis Rurais[/dim]\n"
         "[dim]NBR 14653  ·  Atlas INCRA 2025  ·  BACEN Res. 4.676/2018[/dim]\n\n"
-        f"[dim]Modelo:[/dim] [cyan]{model}[/cyan]   "
-        "[dim]│  [bold]/ajuda[/bold] para comandos  │  [bold]/sair[/bold] para encerrar[/dim]",
+        f"[dim]Modelo:[/dim] [cyan]{model}[/cyan]\n\n"
+        f"[dim]Documentos carregados:[/dim]\n{docs_line}\n\n"
+        "[dim][bold]/ajuda[/bold] para comandos  │  [bold]/sair[/bold] para encerrar[/dim]",
         border_style="green",
         padding=(0, 2),
     ))
@@ -143,9 +145,8 @@ def main(ctx: typer.Context) -> None:
     apply_api_key(config)
     model = get_litellm_model(config)
 
-    print_banner(model)
-
     agent = TerraValAgent(model=model)
+    print_banner(model, agent.loaded_refs)
 
     while True:
         try:
@@ -182,7 +183,7 @@ def main(ctx: typer.Context) -> None:
             apply_api_key(config)
             model = get_litellm_model(config)
             agent = TerraValAgent(model=model)
-            print_banner(model)
+            print_banner(model, agent.loaded_refs)
             continue
 
         # ── Stream response ────────────────────────────────────────────────
